@@ -1,16 +1,16 @@
-params.reads = "$PWD/reads/*_R{1,2}.fastq.gz"
+params.reads = "$PWD/reads/*_R{1,2}.fq.gz"
 
 process fastp {
 	input:
 	tuple val(sample_id), path(reads)
 
 	output:
-	tuple path("trimmed_reads/${sample_id}_R1_trimmed.fastq.gz"), path("trimmed_reads/${sample_id}_R2_trimmed.fastq.gz")
+	tuple path("trimmed_reads/${sample_id}_R1_trimmed.fq.gz"), path("trimmed_reads/${sample_id}_R2_trimmed.fq.gz")
 
 	script:
 	"""
 	mkdir trimmed_reads
-	fastp --in1 ${reads[0]} --in2 ${reads[1]} --out1 trimmed_reads/${sample_id}_R1_trimmed.fastq.gz --out2 trimmed_reads/${sample_id}_R2_trimmed.fastq.gz
+	fastp --in1 ${reads[0]} --in2 ${reads[1]} --out1 trimmed_reads/${sample_id}_R1_trimmed.fq.gz --out2 trimmed_reads/${sample_id}_R2_trimmed.fq.gz
 	"""
 }
 
