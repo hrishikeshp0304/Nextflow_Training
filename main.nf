@@ -1,7 +1,8 @@
-// Define parameters and their default paths. These can be set on the command-line (with priority) as well.
-params.reads = "$PWD/reads/*_R{1,2}.fq.gz"
+params.reads = "$PWD/reads/*_{1,2}.fastq.gz"
 params.trimmed_reads = "$PWD/trimming_out"
 params.assembly = "$PWD/assembly_out"
+params.qa = "$PWD/qa"
+params.genotyping = "$PWD/genotyping"
 
 // Check if trimmed_out dir exists. Create, if doesnt exist.
 if (!file(params.trimmed_reads).exists()) {
@@ -38,21 +39,65 @@ if (!file(params.assembly).exists()) {
 process skesa {
 
 	// Write the output to the assembly_out directory
-    publishDir params.assembly, mode:'copy'
+    	publishDir params.assembly, mode:'copy'
 
 	// Trimmed input files
-    input:
-    tuple val(sample_id), path(trimmed_reads)
+    	input:
+    	tuple val(sample_id), path(trimmed_reads)
 
 	// Output assembly files from this process
-    output:
-    path("${sample_id}".fasta)
+    	output:
+    	tuple val(sample_id), path("${sample_id}.fasta")
 
 	// Command to run SKESA
-    script:
-    """
-    skesa --reads ${trimmed_reads[0]} ${trimmed_reads[1]} --contigs_out ${sample_id}.fasta
-    """
+    	script:
+    	"""
+    	skesa --reads ${trimmed_reads[0]} ${trimmed_reads[1]} --contigs_out ${sample_id}.fasta
+    	"""
+}
+
+// Check if qa dir exists, if not create it
+if (!file(params.qa).exists()) {
+        file(params.qa).mkdirs()
+}
+
+// Quality Assessment process
+process quast {
+     	// Write the output to the qa directory
+    	publishDir params.qa, mode: 'copy'
+
+    	input:
+    	tuple val(sample_id), path(assembly_file)
+
+    	output:
+    	path("quast_results_${sample_id}") 
+    
+    	script:
+    	"""
+    	quast.py ${assembly_file} -o quast_results_${sample_id}
+   	"""
+}
+
+// Check if genotyping dir exists, if not create it
+if (!file(params.genotyping).exists()) {
+        file(params.genotyping).mkdirs()
+}
+
+// MLST Report process
+process mlst {
+    	// Write the output to the genotyping directory
+    	publishDir params.genotyping, mode: 'copy'
+
+    	input:
+    	tuple val(sample_id), path(assembly_file)
+
+    	output:
+    	path("mlst_results_${sample_id}")
+
+    	script:
+    	"""
+    	mlst ${assembly_file} > mlst_results_${sample_id}
+    	"""
 }
 
 // Define the workflow
@@ -65,4 +110,10 @@ workflow {
 
 	//Perform assembly and pass the output to a new channel assembly_ch
 	assembly_ch = skesa(trimmed_ch)
+
+	// Perform quast and pass the output to a new channel quast_ch
+   	quast_ch = quast(assembly_ch)
+
+    	// Perform mlst and pass the output to a new channel mlst_ch
+   	mlst_ch = mlst(assembly_ch)
 }
